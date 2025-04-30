@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include <rply.h>
@@ -97,16 +78,14 @@ int ReadColorCallback(p_ply_argument argument) {
     long index;
     ply_get_argument_user_data(argument, reinterpret_cast<void **>(&state_ptr),
                                &index);
-    if (state_ptr->color_index >= state_ptr->color_num) {
+    if (state_ptr->color_index >= state_ptr->color_num * 3) {
         return 0;
     }
 
     double value = ply_get_argument_value(argument);
-    state_ptr->pointcloud_ptr->colors_[state_ptr->color_index](index) =
+    state_ptr->pointcloud_ptr->colors_[state_ptr->color_index / 3](index) =
             value / 255.0;
-    if (index == 2) {  // reading 'blue'
-        state_ptr->color_index++;
-    }
+    ++state_ptr->color_index;
     return 1;
 }
 
@@ -169,16 +148,14 @@ int ReadColorCallback(p_ply_argument argument) {
     long index;
     ply_get_argument_user_data(argument, reinterpret_cast<void **>(&state_ptr),
                                &index);
-    if (state_ptr->color_index >= state_ptr->color_num) {
+    if (state_ptr->color_index >= state_ptr->color_num * 3) {
         return 0;
     }
 
     double value = ply_get_argument_value(argument);
-    state_ptr->mesh_ptr->vertex_colors_[state_ptr->color_index](index) =
+    state_ptr->mesh_ptr->vertex_colors_[state_ptr->color_index / 3](index) =
             value / 255.0;
-    if (index == 2) {  // reading 'blue'
-        state_ptr->color_index++;
-    }
+    ++state_ptr->color_index;
     return 1;
 }
 
@@ -267,15 +244,15 @@ int ReadColorCallback(p_ply_argument argument) {
     long index;
     ply_get_argument_user_data(argument, reinterpret_cast<void **>(&state_ptr),
                                &index);
-    if (state_ptr->color_index >= state_ptr->color_num) {
+    if (state_ptr->color_index >= state_ptr->color_num * 3) {
         return 0;
     }
 
     double value = ply_get_argument_value(argument);
-    state_ptr->lineset_ptr->colors_[state_ptr->color_index](index) =
+    state_ptr->lineset_ptr->colors_[state_ptr->color_index / 3](index) =
             value / 255.0;
-    if (index == 2) {  // reading 'blue'
-        state_ptr->color_index++;
+    ++state_ptr->color_index;
+    if (state_ptr->color_index % 3 == 0) {
         ++(*state_ptr->progress_bar);
     }
     return 1;
@@ -342,15 +319,15 @@ int ReadColorCallback(p_ply_argument argument) {
     long index;
     ply_get_argument_user_data(argument, reinterpret_cast<void **>(&state_ptr),
                                &index);
-    if (state_ptr->color_index >= state_ptr->color_num) {
+    if (state_ptr->color_index >= state_ptr->color_num * 3) {
         return 0;
     }
 
     double value = ply_get_argument_value(argument);
     auto &ptr = *(state_ptr->voxelgrid_ptr);
-    ptr[state_ptr->color_index].color_(index) = value / 255.0;
-    if (index == 2) {  // reading 'blue'
-        state_ptr->color_index++;
+    ptr[state_ptr->color_index / 3].color_(index) = value / 255.0;
+    ++state_ptr->color_index;
+    if (state_ptr->color_index % 3 == 0) {
         ++(*state_ptr->progress_bar);
     }
     return 1;

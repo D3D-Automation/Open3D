@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include <GLFW/glfw3.h>
@@ -29,6 +10,7 @@
 #include "Application.h"
 #include "Native.h"
 #define GLFW_EXPOSE_NATIVE_X11 1
+#define GLFW_EXPOSE_NATIVE_WAYLAND 1
 #include <GLFW/glfw3native.h>
 #include <memory.h>
 
@@ -37,20 +19,31 @@ namespace visualization {
 namespace gui {
 
 void* GetNativeDrawable(GLFWwindow* glfw_window) {
-    return (void*)glfwGetX11Window(glfw_window);
+    const int platform = glfwGetPlatform();
+    if (platform == GLFW_PLATFORM_X11) {
+        return (void*)glfwGetX11Window(glfw_window);
+    } else if (platform == GLFW_PLATFORM_WAYLAND) {
+        return (void*)glfwGetWaylandWindow(glfw_window);
+    } else {
+        return nullptr;
+    }
 }
 
 void PostNativeExposeEvent(GLFWwindow* glfw_window) {
-    Display* d = glfwGetX11Display();
-    auto x11win = glfwGetX11Window(glfw_window);
+    const int platform = glfwGetPlatform();
 
-    XEvent e;
-    memset(&e, 0, sizeof(e));
-    e.type = Expose;
-    e.xexpose.window = x11win;
+    if (platform == GLFW_PLATFORM_X11) {
+        Display* d = glfwGetX11Display();
+        auto x11win = glfwGetX11Window(glfw_window);
 
-    XSendEvent(d, x11win, False, ExposureMask, &e);
-    XFlush(d);
+        XEvent e;
+        memset(&e, 0, sizeof(e));
+        e.type = Expose;
+        e.xexpose.window = x11win;
+
+        XSendEvent(d, x11win, False, ExposureMask, &e);
+        XFlush(d);
+    }
 }
 
 void ShowNativeAlert(const char* message) {

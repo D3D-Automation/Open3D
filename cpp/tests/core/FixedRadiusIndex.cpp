@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include "open3d/core/nns/FixedRadiusIndex.h"
@@ -100,7 +81,7 @@ TEST(FixedRadiusIndex, SearchRadius) {
     float radius = 0.1;
     core::nns::FixedRadiusIndex index32(dataset_points, radius, core::Int32);
 
-    // if raidus == 0.1
+    // if radius == 0.1
     core::Tensor indices, distances, neighbors_row_splits;
     core::SizeVector shape{2};
     gt_indices = core::Tensor::Init<int32_t>({1, 4}, device);
@@ -121,7 +102,7 @@ TEST(FixedRadiusIndex, SearchRadius) {
     // Set up index.
     core::nns::FixedRadiusIndex index64(dataset_points, radius, core::Int64);
 
-    // if raidus == 0.1
+    // if radius == 0.1
     shape = core::SizeVector{2};
     gt_indices = core::Tensor::Init<int64_t>({1, 4}, device);
     gt_neighbors_row_splits = gt_neighbors_row_splits.To(core::Int64);
@@ -343,7 +324,7 @@ TEST(FixedRadiusIndex, SearchHybrid) {
     int max_knn = 3;
     core::nns::FixedRadiusIndex index32(dataset_points, radius, core::Int32);
 
-    // if raidus == 0.1
+    // if radius == 0.1
     core::Tensor indices, distances, counts;
     core::SizeVector shape{1, 3};
     core::SizeVector shape_counts{1};
@@ -366,7 +347,7 @@ TEST(FixedRadiusIndex, SearchHybrid) {
     // Set up index.
     core::nns::FixedRadiusIndex index64(dataset_points, radius, core::Int64);
 
-    // if raidus == 0.1
+    // if radius == 0.1
     gt_indices = core::Tensor::Init<int64_t>({{1, 4, -1}}, device);
     gt_counts = core::Tensor::Init<int64_t>({2}, device);
 

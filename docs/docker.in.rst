@@ -3,14 +3,17 @@
 Docker
 ======
 
-Docker provides a convenient way to build, install and run applications isolated
-from the rest of your system. You do not need to change software versions on
-your system or install new software, except the Docker engine itself.
+Docker provides a convenient way to build, install and run applications
+isolated from the rest of your system. You do not need to change software
+versions on your system or install new software, except the Docker engine
+itself.
 
-First, install Docker following the `official guide <https://docs.docker.com/get-docker/>`_.
-Also, complete the `post-installation steps for Linux <https://docs.docker.com/engine/install/linux-postinstall/>`_.
-Make sure that ``docker`` can be executed without root privileges. To verify
-Docker is installed correctly, run:
+First, install Docker following the
+`official guide <https://docs.docker.com/get-docker/>`_. (Under Linux,
+complete the
+`post-installation steps for Linux <https://docs.docker.com/engine/install/linux-postinstall/>`_
+and make sure that ``docker`` can be executed without root privileges.)
+To verify Docker is installed correctly, run:
 
 .. code-block:: bash
 
@@ -30,10 +33,11 @@ Python applications looks like this:
 .. code-block:: dockerfile
 
     # This could also be another Ubuntu or Debian based distribution
-    FROM ubuntu:latest
+    FROM ubuntu:22.04
 
     # Install Open3D system dependencies and pip
     RUN apt-get update && apt-get install --no-install-recommends -y \
+        libegl1 \
         libgl1 \
         libgomp1 \
         python3-pip \
@@ -52,11 +56,11 @@ To run GUI applications from the docker container, add these options to the
 
 1. GPU:
 
-  - Intel (Mesa drivers): ``--device=/dev/dri:/dev/dri``
+  - Intel (Mesa drivers): ``--device=/dev/dri:/dev/dri`` or ``--device=/dev/dri/card0:/dev/dri/card0 --device=/dev/dri/renderD128:/dev/dri/renderD128``, depending on your hardware.
 
   - NVIDIA: ``--gpus 'all,"capabilities=compute,utility,graphics"'``
 
-  - No GPU (CPU rendering): ``--env OPEN3D_CPU_RENDERING=true``
+  - No GPU (CPU rendering): CPU rendering is automaticaly selected if a GPU is not available.
 
 2. X server: ``-v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY``
 
@@ -72,7 +76,7 @@ folder that contains data you wish to visualize.
     wget https://github.com/isl-org/Open3D/releases/download/v@OPEN3D_VERSION@/open3d-app-@OPEN3D_VERSION@-Ubuntu.deb
     # Build docker image in folder containing Open3D deb package.
     docker build -t open3d-viewer -f- . <<EOF
-    FROM ubuntu:latest
+    FROM ubuntu:20.04
     COPY open3d*.deb /root/
     RUN apt-get update \
         && apt-get install --yes /root/open3d*.deb \
@@ -91,22 +95,21 @@ folder that contains data you wish to visualize.
         -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY \
         -v "$PWD":/root open3d-viewer:latest
     # Run Open3D viewer docker image without a GPU (CPU rendering)
-    docker run  --env OPEN3D_CPU_RENDERING=true\
-        -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY \
+    docker run -v /tmp/.X11-unix:/tmp/.X11-unix -e DISPLAY \
         -v "$PWD":/root open3d-viewer:latest
 
 Also see the `docker tutorial for ROS
 <http://wiki.ros.org/docker/Tutorials/Hardware%20Acceleration>`__ for more
-information.
+information. Note that differences in hardware, OS drivers and OS packages may
+require you to modify these instructions.
 
 
 Headless rendering
 ------------------
 If a GUI display server (X11 or Wayland) is not available (either in the docker
-container or the host OS), Open3D can still be used for headless rendering. This
-requires installing some additional dependencies. Here is an example Ubuntu /
-Debian based docker file that runs the ``render_to_image.py`` rendering example.
-Other Linux (e.g. RHEL) distributions will need different dependency packages.
+container or the host OS), Open3D can still be used for headless rendering. In
+Ubuntu 20.04+ (with Mesa version 20.2+) this requires configuring the Mesa
+driver with an environment variable (``EGL_PLATFORM=surfaceless``):
 
 .. code-block:: bash
 
@@ -114,19 +117,18 @@ Other Linux (e.g. RHEL) distributions will need different dependency packages.
     wget https://raw.githubusercontent.com/isl-org/Open3D/v@OPEN3D_VERSION@/examples/python/visualization/render_to_image.py
     # Build docker image
     docker build -t open3d-headless -f- . <<EOF
-    FROM ubuntu:latest
+    FROM ubuntu:20.04
     RUN apt-get update \
         && apt-get install --yes --no-install-recommends \
-        libgl1 libgomp1 python3-pip \
-        libdrm2 libedit2 libexpat1 libgcc-s1 libglapi-mesa libllvm10 libx11-xcb1 \
-        libxcb-dri2-0 libxcb-glx0 libxcb-shm0 libxcb-xfixes0 libxfixes3 \
-        libxxf86vm1 \
+        libegl1 libgl1 libgomp1 python3-pip \
         && rm -rf /var/lib/apt/lists/*
 
     # Install Open3D from the PyPI repositories
     RUN python3 -m pip install --no-cache-dir --upgrade pip && \
         python3 -m pip install --no-cache-dir --upgrade open3d==@OPEN3D_VERSION@
 
+    # Configure Mesa EGL for headless rendering
+    ENV EGL_PLATFORM=surfaceless
     WORKDIR /root/
     ENTRYPOINT ["python3", "/root/render_to_image.py"]
     EOF
@@ -138,11 +140,9 @@ Other Linux (e.g. RHEL) distributions will need different dependency packages.
     docker run  --gpus 'all,"capabilities=compute,utility,graphics"' \
         -v "$PWD":/root open3d-headless:latest
     # Run headless rendering example without GPU (CPU rendering)
-    docker run  --env OPEN3D_CPU_RENDERING=true  \
-        -v "$PWD":/root open3d-headless:latest
+    docker run -v "$PWD":/root open3d-headless:latest
 
-
-After running one of these commands, there will be two offscreen rendered images
+After running these commands, there will be two offscreen rendered images
 ``test.png`` and ``test2.png`` in the ``open3d-headless-docker`` folder.
 
 
@@ -153,6 +153,8 @@ If your current system does not support the minimum system requirements for
 building Open3D or if you have different versions of Open3D dependencies
 installed, you can build Open3D from source in docker without interfering with
 your system. This may be the case for older OS such as Ubuntu 16.04 or CentOS 7.
+It is also a convenient way to build Open3D for Linux under Windows, including
+its documentation and the Python package and its documentation, and to test it.
 We provide docker build scripts and dockerfiles to build Python wheels in
 various configurations. You can choose between different versions of Python,
 hardware architectures (AMD64, ARM64, CUDA) and developer vs release modes. Some
@@ -168,3 +170,9 @@ sample configuration options available are shown below.
 
 Run ``./docker_build.sh`` without arguments to get a list of all available build
 configurations.
+
+.. note:: You can control support for PyTorch and Tensorflow with environment variables:
+          `BUILD_PYTORCH_OPS=ON` and `BUILD_TENSORFLOW_OPS=ON`
+
+More instructions for building and testing Open3D for Linux using Docker
+are located in the ``README.md`` file of the ``docker`` directory.

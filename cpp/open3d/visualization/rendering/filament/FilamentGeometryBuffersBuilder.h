@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #pragma once
@@ -191,8 +172,41 @@ public:
     Buffers ConstructBuffers() override;
     filament::Box ComputeAABB() override;
 
-private:
+protected:
     t::geometry::PointCloud geometry_;
+};
+
+class TGaussianSplatBuffersBuilder : public TPointCloudBuffersBuilder {
+public:
+    /// \brief Constructs a TGaussianSplatBuffersBuilder object.
+    ///
+    /// Initializes the Gaussian Splat buffers from the provided \p geometry and
+    /// ensures that all necessary attributes are present and correctly
+    /// formatted. If the geometry is not a Gaussian Splat, a warning is issued.
+    /// Additionally, attributes like "f_dc", "opacity", "rot", "scale", and
+    /// "f_rest" are checked for their data type, and converted to Float32 if
+    /// they are not already in that format.
+    explicit TGaussianSplatBuffersBuilder(
+            const t::geometry::PointCloud& geometry);
+
+    /// \brief Constructs vertex and index buffers for Gaussian Splat rendering.
+    ///
+    /// This function creates and configures GPU buffers to represent a Gaussian
+    /// Splat point cloud. It extracts attributes like positions, colors,
+    /// rotation, scale, and spherical harmonics coefficients from the provided
+    /// \ref geometry_ and organizes them into separate vertex buffer
+    /// attributes.
+    ///
+    /// The vertex buffer contains the following attributes:
+    /// - POSITION: Vertex positions (FLOAT3)
+    /// - COLOR: DC component and opacity (FLOAT4)
+    /// - TANGENTS: Rotation quaternion (FLOAT4)
+    /// - CUSTOM0: Scale (FLOAT4)
+    /// - CUSTOM1 to CUSTOM6: SH coefficients (FLOAT4)
+    ///
+    /// Each attribute is checked and converted to the expected data type if
+    /// necessary, and missing attributes are initialized with default values.
+    Buffers ConstructBuffers() override;
 };
 
 class TLineSetBuffersBuilder : public GeometryBuffersBuilder {

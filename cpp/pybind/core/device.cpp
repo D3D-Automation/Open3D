@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include "open3d/core/Device.h"
@@ -33,17 +14,42 @@
 namespace open3d {
 namespace core {
 
-void pybind_core_device(py::module &m) {
+void pybind_core_device_declarations(py::module &m) {
     py::class_<Device> device(
             m, "Device",
             "Device context specifying device type and device id.");
+    py::enum_<Device::DeviceType>(device, "DeviceType")
+            .value("CPU", Device::DeviceType::CPU)
+            .value("CUDA", Device::DeviceType::CUDA)
+            .value("SYCL", Device::DeviceType::SYCL)
+            .export_values();
+}
+void pybind_core_device_definitions(py::module &m) {
+    auto device = static_cast<py::class_<Device>>(m.attr("Device"));
     device.def(py::init<>());
     device.def(py::init<Device::DeviceType, int>());
     device.def(py::init<const std::string &, int>());
     device.def(py::init<const std::string &>());
     device.def("__eq__", &Device::operator==);
     device.def("__ene__", &Device::operator!=);
-    device.def("__repr__", &Device::ToString);
+    device.def("__repr__", [](const Device &d) {
+        std::string device_type;
+        switch (d.GetType()) {
+            case Device::DeviceType::CPU:
+                device_type = "CPU";
+                break;
+            case Device::DeviceType::CUDA:
+                device_type = "CUDA";
+                break;
+            case Device::DeviceType::SYCL:
+                device_type = "SYCL";
+                break;
+            default:
+                utility::LogError("Unknown device type");
+                return d.ToString();
+        }
+        return fmt::format("Device(\"{}\", {})", device_type, d.GetID());
+    });
     device.def("__str__", &Device::ToString);
     device.def("get_type", &Device::GetType);
     device.def("get_id", &Device::GetID);
@@ -60,11 +66,6 @@ void pybind_core_device(py::module &m) {
                 return Device(t[0].cast<Device::DeviceType>(),
                               t[1].cast<int>());
             }));
-
-    py::enum_<Device::DeviceType>(device, "DeviceType")
-            .value("CPU", Device::DeviceType::CPU)
-            .value("CUDA", Device::DeviceType::CUDA)
-            .export_values();
 }
 
 }  // namespace core
