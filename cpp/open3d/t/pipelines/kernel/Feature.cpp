@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include "open3d/t/pipelines/kernel/Feature.h"
@@ -34,24 +15,44 @@ namespace t {
 namespace pipelines {
 namespace kernel {
 
-void ComputeFPFHFeature(const core::Tensor &points,
-                        const core::Tensor &normals,
-                        const core::Tensor &indices,
-                        const core::Tensor &distance2,
-                        const core::Tensor &counts,
-                        core::Tensor &fpfhs) {
-    core::AssertTensorShape(fpfhs, {points.GetLength(), 33});
+void ComputeFPFHFeature(
+        const core::Tensor &points,
+        const core::Tensor &normals,
+        const core::Tensor &indices,
+        const core::Tensor &distance2,
+        const core::Tensor &counts,
+        core::Tensor &fpfhs,
+        const utility::optional<core::Tensor> &mask,
+        const utility::optional<core::Tensor> &map_info_idx_to_point_idx) {
+    if (mask.has_value()) {
+        const int64_t size =
+                mask.value().To(core::Int64).Sum({0}).Item<int64_t>();
+        core::AssertTensorShape(fpfhs, {size, 33});
+        core::AssertTensorShape(mask.value(), {points.GetLength()});
+    } else {
+        core::AssertTensorShape(fpfhs, {points.GetLength(), 33});
+    }
+    if (map_info_idx_to_point_idx.has_value()) {
+        const bool is_radius_search = indices.GetShape().size() == 1;
+        core::AssertTensorShape(
+                map_info_idx_to_point_idx.value(),
+                {counts.GetLength() - (is_radius_search ? 1 : 0)});
+    }
     const core::Tensor points_d = points.Contiguous();
     const core::Tensor normals_d = normals.Contiguous();
     const core::Tensor counts_d = counts.To(core::Int32);
     if (points_d.IsCPU()) {
         ComputeFPFHFeatureCPU(points_d, normals_d, indices, distance2, counts_d,
-                              fpfhs);
+                              fpfhs, mask, map_info_idx_to_point_idx);
     } else {
         core::CUDAScopedDevice scoped_device(points.GetDevice());
         CUDA_CALL(ComputeFPFHFeatureCUDA, points_d, normals_d, indices,
-                  distance2, counts_d, fpfhs);
+                  distance2, counts_d, fpfhs, mask, map_info_idx_to_point_idx);
     }
+    utility::LogDebug(
+            "[ComputeFPFHFeature] Computed {:d} features from "
+            "input point cloud with {:d} points.",
+            (int)fpfhs.GetLength(), (int)points.GetLength());
 }
 
 }  // namespace kernel

@@ -1,27 +1,8 @@
 // ----------------------------------------------------------------------------
 // -                        Open3D: www.open3d.org                            -
 // ----------------------------------------------------------------------------
-// The MIT License (MIT)
-//
-// Copyright (c) 2018-2021 www.open3d.org
-//
-// Permission is hereby granted, free of charge, to any person obtaining a copy
-// of this software and associated documentation files (the "Software"), to deal
-// in the Software without restriction, including without limitation the rights
-// to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-// copies of the Software, and to permit persons to whom the Software is
-// furnished to do so, subject to the following conditions:
-//
-// The above copyright notice and this permission notice shall be included in
-// all copies or substantial portions of the Software.
-//
-// THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-// IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-// FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-// AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-// LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
-// FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
-// IN THE SOFTWARE.
+// Copyright (c) 2018-2024 www.open3d.org
+// SPDX-License-Identifier: MIT
 // ----------------------------------------------------------------------------
 
 #include <gmock/gmock.h>
@@ -38,12 +19,14 @@
 namespace open3d {
 namespace tests {
 
-class OrientedBoundingBoxPermuteDevices : public PermuteDevices {};
-INSTANTIATE_TEST_SUITE_P(OrientedBoundingBox,
-                         OrientedBoundingBoxPermuteDevices,
-                         testing::ValuesIn(PermuteDevices::TestCases()));
+class OrientedBoundingBoxPermuteDevices : public PermuteDevicesWithSYCL {};
+INSTANTIATE_TEST_SUITE_P(
+        OrientedBoundingBox,
+        OrientedBoundingBoxPermuteDevices,
+        testing::ValuesIn(PermuteDevicesWithSYCL::TestCases()));
 
-class OrientedBoundingBoxPermuteDevicePairs : public PermuteDevicePairs {};
+class OrientedBoundingBoxPermuteDevicePairs
+    : public PermuteDevicePairsWithSYCL {};
 INSTANTIATE_TEST_SUITE_P(
         OrientedBoundingBox,
         OrientedBoundingBoxPermuteDevicePairs,
@@ -245,8 +228,8 @@ TEST_P(OrientedBoundingBoxPermuteDevices, Scale) {
 TEST_P(OrientedBoundingBoxPermuteDevices, GetBoxPoints) {
     core::Device device = GetParam();
 
-    core::Tensor center = core::Tensor::Init<float>({-1, -1, -1}, device);
-    core::Tensor extent = core::Tensor::Init<float>({1.0, 1.0, 1.0}, device);
+    core::Tensor center = core::Tensor::Init<float>({-1., -1., -1.}, device);
+    core::Tensor extent = core::Tensor::Init<float>({0.0, 0.0, 1.0}, device);
     core::Tensor rotation = core::Tensor::Eye(3, core::Float32, device);
 
     t::geometry::OrientedBoundingBox obb(center, rotation, extent);
@@ -254,19 +237,20 @@ TEST_P(OrientedBoundingBoxPermuteDevices, GetBoxPoints) {
     auto box_points = obb.GetBoxPoints();
 
     EXPECT_TRUE(
-            box_points.AllClose(core::Tensor::Init<float>({{-1.5, -1.5, -1.5},
-                                                           {-0.5, -1.5, -1.5},
-                                                           {-1.5, -0.5, -1.5},
-                                                           {-1.5, -1.5, -0.5},
-                                                           {-0.5, -0.5, -0.5},
-                                                           {-1.5, -0.5, -0.5},
-                                                           {-0.5, -1.5, -0.5},
-                                                           {-0.5, -0.5, -1.5}},
+            box_points.AllClose(core::Tensor::Init<float>({{-1.0, -1.0, -1.5},
+                                                           {-1.0, -1.0, -1.5},
+                                                           {-1.0, -1.0, -1.5},
+                                                           {-1.0, -1.0, -0.5},
+                                                           {-1.0, -1.0, -0.5},
+                                                           {-1.0, -1.0, -0.5},
+                                                           {-1.0, -1.0, -0.5},
+                                                           {-1.0, -1.0, -1.5}},
                                                           device)));
 }
 
 TEST_P(OrientedBoundingBoxPermuteDevices, GetPointIndicesWithinBoundingBox) {
     core::Device device = GetParam();
+    if (device.IsSYCL()) GTEST_SKIP() << "Not Implemented!";
 
     core::Tensor center = core::Tensor::Init<float>({0.5, 0.5, 0.5}, device);
     core::Tensor rotation = core::Tensor::Eye(3, core::Float32, device);
@@ -330,8 +314,10 @@ TEST_P(OrientedBoundingBoxPermuteDevices, CreateFromPoints) {
                                                      {0.2, 0.4, 0.2}},
                                                     device);
     t::geometry::OrientedBoundingBox obb =
-            t::geometry::OrientedBoundingBox::CreateFromPoints(points);
+            t::geometry::OrientedBoundingBox::CreateFromPoints(
+                    points, false, t::geometry::MethodOBBCreate::PCA);
 
+    double volume_pca = obb.Volume();
     EXPECT_TRUE(obb.GetCenter().AllClose(
             core::Tensor::Init<float>({0.376834, 0.383993, 0.438357}, device)));
     EXPECT_TRUE(obb.GetExtent().AllClose(
@@ -341,6 +327,54 @@ TEST_P(OrientedBoundingBoxPermuteDevices, CreateFromPoints) {
                                        {-0.23128562, 0.11683135, 0.96584543},
                                        {-0.59456878, -0.80276917, -0.04527287}},
                                       device)));
+
+    obb = t::geometry::OrientedBoundingBox::CreateFromPoints(
+            points, false, t::geometry::MethodOBBCreate::MINIMAL_APPROX);
+
+    double volume_minimal_approx = obb.Volume();
+    EXPECT_TRUE(obb.GetCenter().AllClose(core::Tensor::Init<float>(
+            {0.48040563, 0.41738185, 0.6609621}, device)));
+    EXPECT_TRUE(obb.GetExtent().AllClose(core::Tensor::Init<float>(
+            {0.7549834, 0.70412314, 0.3160263}, device)));
+    EXPECT_TRUE(obb.GetRotation().AllClose(
+            core::Tensor::Init<float>({{0.92717266, -0.29899076, -0.22573307},
+                                       {-0.2649065, -0.097171985, -0.9593655},
+                                       {0.2649065, 0.9492956, -0.1692998}},
+                                      device)));
+
+    obb = t::geometry::OrientedBoundingBox::CreateFromPoints(
+            points, false, t::geometry::MethodOBBCreate::MINIMAL_JYLANKI);
+
+    double volume_minimal_jylanki = obb.Volume();
+    EXPECT_TRUE(obb.GetCenter().AllClose(core::Tensor::Init<float>(
+            {0.48921, 0.39296725, 0.60414255}, device)));
+    EXPECT_TRUE(obb.GetExtent().AllClose(core::Tensor::Init<float>(
+            {0.30105788, 0.6932796, 0.64758265}, device)));
+    EXPECT_TRUE(obb.GetRotation().AllClose(
+            core::Tensor::Init<float>({{0.07168044, -0.9798642, 0.18635473},
+                                       {-0.94976586, -0.124117985, -0.2872969},
+                                       {0.3046419, -0.1563998, -0.9395384}},
+                                      device)));
+
+    EXPECT_LT(volume_minimal_approx, volume_pca);
+    EXPECT_LT(volume_minimal_jylanki, volume_minimal_approx);
+
+    // Test minimum number of points
+    auto points3 = points.GetItem(core::TensorKey::Slice(0, 3, 1));
+
+    EXPECT_THROW(obb = t::geometry::OrientedBoundingBox::CreateFromPoints(
+                         points3, false, t::geometry::MethodOBBCreate::PCA),
+                 std::runtime_error);
+
+    EXPECT_THROW(obb = t::geometry::OrientedBoundingBox::CreateFromPoints(
+                         points3, false,
+                         t::geometry::MethodOBBCreate::MINIMAL_APPROX),
+                 std::runtime_error);
+
+    EXPECT_THROW(obb = t::geometry::OrientedBoundingBox::CreateFromPoints(
+                         points3, false,
+                         t::geometry::MethodOBBCreate::MINIMAL_JYLANKI),
+                 std::runtime_error);
 }
 
 }  // namespace tests
